@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Statistics</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            scroll-behavior: smooth;
+            background-color: #f8f9fa;
+            color: #1d1d1f;
+        }
+        @keyframes pulse-light {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(0, 122, 255, 0.3); }
+            70% { box-shadow: 0 0 0 25px rgba(0, 122, 255, 0); }
+        }
+        .animate-pulse-light {
+            animation: pulse-light 2.5s infinite cubic-bezier(0.4, 0, 0.6, 1);
+        }
+
+        .stat-card {
+            background-color: #ffffff;
+            border-radius: 1.25rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.07);
+        }
+        .stat-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+            z-index: 40;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+        .modal-backdrop.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 1.25rem;
+            box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0, 122, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #007aff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 12px;
+        }
+        
+        .chart-toggle button.active {
+            background-color: white;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            color: #1d1d1f;
+            font-weight: 600;
+        }
+
+        .scroll-reveal-item {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+        }
+        .scroll-reveal-item.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .glass-container {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1), inset 0 1px 1px rgba(255, 255, 255, 0.6);
+            padding: 40px;
+            border-radius: 1.5rem;
+            transition: all 0.6s ease;
+        }
+
+        @keyframes pulse-wave {
+            0%, 100% { transform: scaleY(0.4); }
+            50% { transform: scaleY(1); }
+        }
+        .voice-wave-bar {
+            animation: pulse-wave 1.2s ease-in-out infinite;
+            transform-origin: bottom;
+        }
+        .voice-wave-bar:nth-child(2n) { animation-delay: 0.1s; }
+        .voice-wave-bar:nth-child(3n) { animation-delay: 0.2s; }
+        .voice-wave-bar:nth-child(4n) { animation-delay: 0.3s; }
+        .voice-wave-bar:nth-child(5n) { animation-delay: 0.4s; }
+
+        #header-wrapper {
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            height: 148px;
+            pointer-events: none;
+            background-color: rgba(248, 249, 250, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            transition: background-color 0.3s ease, backdrop-filter 0.3s ease;
+        }
+        #header-container {
+            position: absolute;
+            width: 100%;
+            padding: 32px 0;
+            transition: all 1.5s cubic-bezier(0.65, 0, 0.35, 1);
+        }
+        #change-chat-button {
+            pointer-events: auto;
+        }
+        
+        .language-switcher {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 100;
+            background-color: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 0.25rem;
+            border-radius: 9999px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 0.25rem;
+        }
+        .language-switcher button {
+            border-radius: 9999px;
+            padding: 0.5rem 1rem;
+            font-weight: 500;
+            color: #333;
+            transition: all 0.3s ease;
+            border: none;
+            background: transparent;
+        }
+        .language-switcher button.active {
+            background-color: #007aff;
+            color: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="language-switcher">
+        <button data-lang="en">EN</button>
+        <button data-lang="uk">UA</button>
+    </div>
+
+    <input type="file" id="file-input" webkitdirectory multiple style="display: none;" />
+
+    <div id="chat-selection-modal" class="modal-backdrop">
+        <div class="modal-content">
+            <h2 class="text-2xl font-bold mb-2 text-center" data-translate-key="select_chat_title">Оберіть чат для аналізу</h2>
+            <p class="text-gray-600 mb-6 text-center text-sm" data-translate-key="select_chat_subtitle">Ми знайшли кілька особистих переписок у вашому файлі.</p>
+            <div id="chat-list-container" class="space-y-2"></div>
+            <div id="pagination-container" class="mt-4 text-center"></div>
+        </div>
+    </div>
+    <div id="epicenter-modal" class="modal-backdrop">
+        <div id="epicenter-modal-content" class="modal-content"></div>
+    </div>
+
+    <div id="landing-page" class="flex flex-col items-center justify-center min-h-screen p-6 transition-opacity duration-500">
+        <div class="text-center">
+            <h1 class="text-5xl md:text-6xl font-extrabold tracking-tight text-gray-900 mb-12" data-translate-key="landing_title">
+                Статистика твого Telegram
+            </h1>
+            <button id="upload-button" class="group relative w-full max-w-xl px-12 py-16 bg-white border-2 border-dashed border-gray-300 rounded-2xl text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all duration-300 ease-in-out transform hover:-translate-y-1 animate-pulse-light">
+                <div id="upload-button-content" class="flex flex-col items-center justify-center">
+                    <svg class="w-16 h-16 text-gray-400 group-hover:text-blue-600 transition-colors duration-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l-3.75 3.75M12 9.75l3.75 3.75M3 13.5v-3a9 9 0 0118 0v3" /></svg>
+                    <p class="mt-4 text-xl font-semibold text-gray-700 group-hover:text-blue-700 transition-colors duration-300" data-translate-key="upload_button_main">Вибрати папку з історією</p>
+                    <p class="mt-2 text-base text-gray-500" data-translate-key="upload_button_sub">Оберіть папку, експортовану з Telegram</p>
+                </div>
+            </button>
+            <p class="mt-12 text-xs text-gray-400 max-w-sm mx-auto" data-translate-key="consent_text">
+                Завантажуючи дані на сайт, ви даєте згоду на їх опрацювання Елвіном та бурундуками. Вся обробка відбувається локально у вашому браузері.
+            </p>
+        </div>
+    </div>
+
+    <div id="header-wrapper" class="hidden">
+        <div id="header-container">
+            <div class="max-w-7xl mx-auto text-center">
+                <h2 class="text-4xl md:text-5xl font-extrabold text-gray-900">
+                    <span data-translate-key="header_chat_with">Переписка з</span> <span id="chat-partner-name" class="text-blue-600">...</span>
+                    <button id="change-chat-button" title="Змінити чат" data-translate-title="change_chat_title" class="ml-2 text-sm font-medium text-blue-600 hover:text-blue-800 align-middle p-2 rounded-full hover:bg-blue-100 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                </h2>
+                <p id="header-subtitle" class="mt-2 text-lg text-gray-500 transition-opacity duration-500" data-translate-key="header_subtitle">Аналіз вашої цифрової історії</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="stats-page" class="hidden min-h-screen p-4 md:p-8 pt-0">
+        <div id="stats-blocks-container" class="max-w-7xl mx-auto opacity-0 transition-opacity duration-1000 delay-500">
+            <div class="scroll-reveal-item glass-container mb-20">
+                <div class="text-center mb-8">
+                    <h3 class="text-3xl font-bold text-gray-800" data-translate-key="section1_title">Велике Полотно Вашої Історії</h3>
+                    <p class="text-gray-500 mt-1" data-translate-key="section1_subtitle">Масштаб вашого спілкування у цифрах.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div id="card-first-message" class="stat-card p-6"><div class="loading-placeholder h-48 flex justify-center items-center bg-gray-200 animate-pulse rounded-xl"><p class="text-gray-500"></p></div><div class="stat-content hidden"><h4 class="font-semibold text-gray-500 mb-2" data-translate-key="card_first_message_title">Початок історії 📜</h4><p class="text-sm text-gray-400 italic mb-4" data-translate-key="card_first_message_subtitle">"Все почалося з цього..."</p><div class="bg-blue-50 p-4 rounded-lg border border-blue-200 mt-auto"><p class="font-medium text-blue-800" id="first-msg-author"></p><p class="text-gray-700 mt-1" id="first-msg-text"></p><p class="text-right text-xs text-gray-400 mt-2" id="first-msg-date"></p></div></div></div>
+                    <div id="card-distance" class="stat-card p-6 lg:col-span-2"><div class="loading-placeholder h-48 flex justify-center items-center bg-gray-200 animate-pulse rounded-xl"><p class="text-gray-500"></p></div><div class="stat-content hidden"><h4 class="font-semibold text-gray-500 mb-2" data-translate-key="card_distance_title">Довжина переписки ✈️</h4><p class="text-sm text-gray-400 italic mb-4" data-translate-key="card_distance_subtitle">"Якби ваші повідомлення були дорогою..."</p><div class="relative flex-grow flex flex-col items-center justify-center bg-blue-50 rounded-xl p-4 overflow-hidden"><svg class="absolute w-full h-full text-blue-200 opacity-50" fill="none" viewBox="0 0 300 150"><path stroke="currentColor" stroke-width="2" stroke-dasharray="4 4" d="M20 120 Q 150 10, 280 120" /></svg><div class="absolute top-1/2 left-1/4 -mt-4"><span class="text-lg">📍</span><span class="font-semibold" id="city-from"></span></div><div class="absolute top-1/2 right-1/4 -mt-4"><span class="text-lg">📍</span><span class="font-semibold" id="city-to"></span></div><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-600" viewBox="0 0 20 20" fill="currentColor" id="plane-icon"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg><p class="text-4xl font-extrabold text-gray-800 mt-4 z-10" id="distance-km"></p><p class="text-md text-gray-600 z-10" id="distance-chars"></p></div></div></div>
+                    <div id="card-duration" class="stat-card p-6"><div class="loading-placeholder h-48 flex justify-center items-center bg-gray-200 animate-pulse rounded-xl"><p class="text-gray-500"></p></div><div class="stat-content hidden justify-center"><h4 class="font-semibold text-gray-500 mb-2" data-translate-key="card_duration_title">Тривалість спілкування ⏳</h4><p class="text-sm text-gray-400 italic mb-4" data-translate-key="card_duration_subtitle">"Ви разом вже..."</p><div class="text-center"><p class="text-5xl font-extrabold text-gray-800" id="duration-years"></p><p class="text-lg text-gray-600" id="duration-details"></p></div></div></div>
+                    <div id="card-total-messages" class="stat-card p-6"><div class="loading-placeholder h-48 flex justify-center items-center bg-gray-200 animate-pulse rounded-xl"><p class="text-gray-500"></p></div><div class="stat-content hidden justify-center"><h4 class="font-semibold text-gray-500 mb-2" data-translate-key="card_total_messages_title">Загальна кількість повідомлень 💬</h4><p class="text-sm text-gray-400 italic mb-4" data-translate-key="card_total_messages_subtitle">"Слів було сказано чимало."</p><div class="text-center"><p class="text-6xl font-extrabold text-blue-600" id="total-messages-count"></p></div></div></div>
+                    <div id="card-leader" class="stat-card p-6"><div class="loading-placeholder h-48 flex justify-center items-center bg-gray-200 animate-pulse rounded-xl"><p class="text-gray-500"></p></div><div class="stat-content hidden"><h4 class="font-semibold text-gray-500 mb-2" data-translate-key="card_leader_title">Лідер за повідомленнями 🥇</h4><p class="text-sm text-gray-400 italic mb-4" data-translate-key="card_leader_subtitle">"Хто тут найбалакучіший?"</p><div class="flex flex-col justify-center flex-grow space-y-4" id="leader-content"></div></div></div>
+                </div>
+            </div>
+            
+            <div class="scroll-reveal-item glass-container mb-20">
+                 <div class="text-center mb-8">
+                    <h3 class="text-3xl font-bold text-gray-800" data-translate-key="section2_title">Магія Слів та Тексту</h3>
+                    <p class="text-gray-500 mt-1" data-translate-key="section2_subtitle">Аналіз суті ваших текстових повідомлень.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div id="card-word-cloud" class="stat-card p-6"><div class="loading-placeholder h-64 flex justify-center items-center bg-gray-200 animate-pulse rounded-xl"><p class="text-gray-500"></p></div><div class="stat-content hidden"><h4 class="font-semibold text-gray-500 mb-2" data-translate-key="card_word_cloud_title">Хмара найпопулярніших слів ☁️</h4><p class="text-sm text-gray-400 italic mb-4" data-translate-key="card_word_cloud_subtitle">"Слова, що визначають вас."</p><div class="flex-grow min-h-[250px] w-full flex flex-wrap gap-2 items-center justify-center p-4" id="word-cloud-container"></div></div></div>
+                    <div id="card-unique-words" class="stat-card p-6 lg:col-span-2"><div class="loading-placeholder h-48 flex justify-center items-center bg-gray-200 animate-pulse rounded-xl"><p class="text-gray-500"></p></div><div class="stat-content hidden"><h4 class="font-semibold text-gray-500 mb-2" data-translate-key="card_unique_words_title">Унікальні слова ✒️</h4><p class="text-sm text-gray-400 italic mb-4" data-translate-key="card_unique_words_subtitle">"Ваш особистий словник."</p><div class="grid grid-cols-2 gap-4 flex-grow" id="unique-words-content"></div></div></div>
+                    <div id="card-avg-length" class="stat-card p-6"><div class="loading-placeholder h-48 flex justify-center items-center bg-gray-200 animate-pulse rounded-xl"><p class="text-gray-500"></p></div><div class="stat-content hidden"><h4 class="font-semibold text-gray-500 mb-2" data-translate-key="card_avg_length_title">Середня довжина повідомлення 📏</h4><p class="text-sm text-gray-400 italic mb-4" data-translate-key="card_avg_length_subtitle">"Коротко і по суті, чи епістолярний жанр?"</p><div class="space-y-4 flex-grow flex flex-col justify-center" id="avg-length-content"></div></div></div>
+                    <div id="card-emoji" class="stat-card p-6"><div class="loading-placeholder h-64 flex justify-center items-center bg-gray-200 animate-pulse rounded-xl"><p class="text-gray-500"></p></div><div class="stat-content hidden"><h4 class="font-semibold text-gray-500 mb-2" data-translate-key="card_emoji_title">Аналіз емодзі 😂</h4><p class="text-sm text-gray-400 italic mb-4" data-translate-key="card_emoji_subtitle">"Коли слів недостатньо."</p><div class="grid grid-cols-4 gap-4 flex-grow items-center justify-center" id="emoji-grid"></div></div></div>
+                    <div id="card-questions" class="stat-card p-6"><div class="loading-placeholder h-48 flex justify-center items-center bg-gray-200 animate-pulse rounded-xl"><p class="text-gray-500"></p></div><div class="stat-content hidden"><h4 class="font-semibold text-gray-500 mb-2" data-translate-key="card_questions_title">Аналіз "Питання-Відповідь" 🤔</h4><p class="text-sm text-gray-400 italic mb-4" data-translate-key="card_questions_subtitle">"Хто тут головний чомучка?"</p><div class="flex items-center justify-around flex-grow" id="questions-content"></div></div></div>
+                </div>
+            </div>
+
+            <div class="scroll-reveal-item glass-container mb-20">
+                <div class="text-center mb-8">
+                    <h3 class="text-3xl font-bold text-gray-800" data-translate-key="section3_title">Не Текстом Єдиним</h3>
+                    <p class="text-gray-500 mt-1" data-translate-key="section3_subtitle">Аналіз усього, що ви надсилали, крім слів.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div id="card-voice" class="stat-card p-6 lg:col-span-2"><div class="loading-placeholder h-64 flex justify-center items-center bg-gray-200 animate-pulse rounded-xl"><p class="text-gray-500"></p></div><div class="stat-content hidden"><h4 class="font-semibold text-gray-500 mb-2" data-translate-key="card_voice_title">Статистика голосових повідомлень 🎙️</h4><p class="text-sm text-gray-400 italic mb-4" data-translate-key="card_voice_subtitle">"Ви наговорили на цілий подкаст!"</p><div class="flex-grow flex flex-col justify-center"><div class="flex items-end justify-between h-24 bg-gray-100 rounded-lg p-2 gap-px" id="voice-wave-container"></div><div class="mt-4 grid grid-cols-3 gap-4 text-center" id="voice-stats"></div></div></div></div>
+                    <div id="card-stickers" class="stat-card p-6"><div class="loading-placeholder h-64 flex justify-center items-center bg-gray-200 animate-pulse rounded-xl"><p class="text-gray-500"></p></div><div class="stat-content hidden"><h4 class="font-semibold text-gray-500 mb-2" data-translate-key="card_stickers_title">Статистика по стікерах ✨</h4><p class="text-sm text-gray-400 italic mb-4" data-translate-key="card_stickers_subtitle">"Королі та королеви стікерів."</p><div class="flex-grow flex items-end justify-around" id="sticker-stats"></div></div></div>
+                    <div id="card-media" class="stat-card p-6"><div class="loading-placeholder h-48 flex justify-center items-center bg-gray-200 animate-pulse rounded-xl"><p class="text-gray-500"></p></div><div class="stat-content hidden"><h4 class="font-semibold text-gray-500 mb-2" data-translate-key="card_media_title">Мультимедійний звіт 🖼️</h4><p class="text-sm text-gray-400 italic mb-4" data-translate-key="card_media_subtitle">"Ваш особистий архів моментів."</p><div class="grid grid-cols-4 gap-4 flex-grow items-center text-center" id="media-stats"></div></div></div>
+                    <div id="card-links" class="stat-card p-6 lg:col-span-2"><div class="loading-placeholder h-48 flex justify-center items-center bg-gray-200 animate-pulse rounded-xl"><p class="text-gray-500"></p></div><div class="stat-content hidden"><h4 class="font-semibold text-gray-500 mb-2" data-translate-key="card_links_title">Аналіз посилань 🔗</h4><p class="text-sm text-gray-400 italic mb-4" data-translate-key="card_links_subtitle">"Що ви гуглите та дивитесь разом."</p><div class="flex-grow flex items-center justify-around text-center" id="links-stats"></div></div></div>
+                </div>
+            </div>
+
+            <div class="scroll-reveal-item glass-container mb-20">
+                <div class="text-center mb-8">
+                    <h3 class="text-3xl font-bold text-gray-800" data-translate-key="section4_title">Ритм Вашого Спілкування</h3>
+                    <p class="text-gray-500 mt-1" data-translate-key="section4_subtitle">Коли і з якою інтенсивністю ви на зв'язку.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
+                    <div id="card-timeline" class="stat-card p-6 lg:col-span-2"><div class="loading-placeholder h-80 flex justify-center items-center bg-gray-200 animate-pulse rounded-xl"><p class="text-gray-500"></p></div><div class="stat-content hidden"><h4 class="font-semibold text-gray-500 mb-2" data-translate-key="card_timeline_title">Динаміка спілкування (Таймлайн) 📈</h4><p class="text-sm text-gray-400 italic mb-4" data-translate-key="card_timeline_subtitle">"Як змінювалась ваша історія з часом."</p><div class="flex-grow"><canvas id="timeline-chart"></canvas></div></div></div>
+                    <div id="card-hourly-activity" class="stat-card p-6 lg:col-span-2">
+                        <div class="loading-placeholder h-80 flex justify-center items-center bg-gray-200 animate-pulse rounded-xl"><p class="text-gray-500"></p></div>
+                        <div class="stat-content hidden">
+                            <div class="flex justify-between items-center mb-4">
+                                <div>
+                                    <h4 class="font-semibold text-gray-500" data-translate-key="card_hourly_title">Активність по годинах 🔥</h4>
+                                    <p class="text-sm text-gray-400 italic" data-translate-key="card_hourly_subtitle">Коли ваш чат "горить" найяскравіше.</p>
+                                </div>
+                                <div id="hourly-chart-toggle" class="chart-toggle flex rounded-lg bg-gray-200 p-1 text-sm transition-all duration-300">
+                                    <button data-mode="grouped" class="px-3 py-1 rounded-md active" data-translate-key="chart_toggle_grouped">Поруч</button>
+                                    <button data-mode="leader" class="px-3 py-1 rounded-md text-gray-600" data-translate-key="chart_toggle_leader">Лідер</button>
+                                </div>
+                            </div>
+                            <div class="flex-grow" style="height: 300px;"><canvas id="hourly-chart"></canvas></div>
+                        </div>
+                    </div>
+                    <div id="card-daily-avg" class="stat-card p-6"><div class="loading-placeholder h-48 flex justify-center items-center bg-gray-200 animate-pulse rounded-xl"><p class="text-gray-500"></p></div><div class="stat-content hidden justify-center text-center"><h4 class="font-semibold text-gray-500 mb-2" data-translate-key="card_daily_avg_title">Середня кількість повідомлень на день 🗓️</h4><p class="text-sm text-gray-400 italic mb-4" data-translate-key="card_daily_avg_subtitle">"Ваша щоденна норма спілкування."</p><p class="text-6xl font-extrabold text-blue-600" id="daily-avg-count"></p></div></div>
+                    <div id="card-reply-time" class="stat-card p-6"><div class="loading-placeholder h-48 flex justify-center items-center bg-gray-200 animate-pulse rounded-xl"><p class="text-gray-500"></p></div><div class="stat-content hidden"><h4 class="font-semibold text-gray-500 mb-2" data-translate-key="card_reply_time_title">Середній час відповіді ⚡</h4><p class="text-sm text-gray-400 italic mb-4" data-translate-key="card_reply_time_subtitle">"Хто з вас швидше за блискавку?"</p><div class="flex items-center justify-around flex-grow" id="reply-time-content"></div></div></div>
+                </div>
+            </div>
+
+            <div class="scroll-reveal-item glass-container mb-20">
+                <div class="text-center mb-8">
+                    <h3 class="text-3xl font-bold text-gray-800" data-translate-key="section5_title">Досягнення та Розваги</h3>
+                    <p class="text-gray-500 mt-1" data-translate-key="section5_subtitle">Інтерактивні елементи, які роблять статистику грою.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div id="card-achievements" class="stat-card p-6 lg:col-span-3"><div class="loading-placeholder h-64 flex justify-center items-center bg-gray-200 animate-pulse rounded-xl"><p class="text-gray-500"></p></div><div class="stat-content hidden"><h4 class="font-semibold text-gray-500 mb-2" data-translate-key="card_achievements_title">Система досягнень ("Ачівки") 🏆</h4><p class="text-sm text-gray-400 italic mb-4" data-translate-key="card_achievements_subtitle">"Ваші особисті рекорди."</p><div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-8 text-center" id="achievements-grid"></div></div></div>
+                    <div id="card-epicenter" class="stat-card p-6"><div class="loading-placeholder h-48 flex justify-center items-center bg-gray-200 animate-pulse rounded-xl"><p class="text-gray-500"></p></div><div class="stat-content hidden"><h4 class="font-semibold text-gray-500 mb-2" data-translate-key="card_epicenter_title">"Епіцентр розмови" 🔁</h4><p class="text-sm text-gray-400 italic mb-4" data-translate-key="card_epicenter_subtitle">"Повідомлення, що викликало найбільше обговорень."</p><div id="epicenter-content-wrapper" class="bg-indigo-50 p-4 rounded-lg border border-indigo-200 mt-auto cursor-pointer hover:bg-indigo-100 transition"></div></div></div>
+                    <div id="card-nostalgia" class="stat-card p-6"><div class="loading-placeholder h-48 flex justify-center items-center bg-gray-200 animate-pulse rounded-xl"><p class="text-gray-500"></p></div><div class="stat-content hidden justify-center items-center"><h4 class="font-semibold text-gray-500 mb-2" data-translate-key="card_nostalgia_title">Функція "В цей день..." 🕰️</h4><p class="text-sm text-gray-400 italic mb-4" data-translate-key="card_nostalgia_subtitle">"Згадати все."</p><button id="nostalgia-button" class="bg-gray-200 px-4 py-2 rounded-lg hover:bg-gray-300 transition" data-translate-key="nostalgia_button">Показати спогад</button><div id="nostalgia-card" class="hidden mt-4 bg-gray-50 p-3 rounded-md text-sm"></div></div></div>
+                    <div id="card-quote" class="stat-card p-6"><div class="loading-placeholder h-48 flex justify-center items-center bg-gray-200 animate-pulse rounded-xl"><p class="text-gray-500"></p></div><div class="stat-content hidden justify-center items-center"><h4 class="font-semibold text-gray-500 mb-2" data-translate-key="card_quote_title">Генератор цитат.</h4><p class="text-sm text-gray-400 italic mb-4" data-translate-key="card_quote_subtitle">"Найкумедніше з вашого чату."</p><button id="quote-button" class="bg-gray-200 px-4 py-2 rounded-lg hover:bg-gray-300 transition" data-translate-key="quote_button">Згенерувати цитату</button><div id="quote-card" class="hidden mt-4 bg-gray-50 p-3 rounded-md text-sm"></div></div></div>
+                </div>
+            </div>
+
+            <div class="scroll-reveal-item glass-container mb-20">
+                <div class="text-center mb-8">
+                    <h3 class="text-3xl font-bold text-gray-800" data-translate-key="section6_title">Порівняльна статистика 🤼</h3>
+                    <p class="text-gray-500 mt-1" data-translate-key="section6_subtitle">"Цікаво, а як у вас з іншими?"</p>
+                </div>
+                <div class="text-center">
+                    <button id="compare-button" class="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-transform transform hover:scale-105" data-translate-key="compare_button">
+                        Порівняти з іншим чатом
+                    </button>
+                </div>
+                <div id="comparison-setup" class="hidden mt-8 max-w-2xl mx-auto">
+                    <div class="bg-white p-6 rounded-2xl shadow-lg">
+                        <label for="compare-name-input" class="block text-sm font-medium text-gray-700" data-translate-key="compare_input_label">Введіть ім'я співрозмовника з файлу</label>
+                        <div class="mt-2 flex gap-4">
+                            <input type="text" id="compare-name-input" list="chat-suggestions" class="flex-grow block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" data-translate-placeholder="compare_input_placeholder">
+                            <datalist id="chat-suggestions"></datalist>
+                            <button id="start-comparison-button" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition" data-translate-key="compare_start_button">
+                                Порівняти
+                            </button>
+                        </div>
+                        <p id="comparison-error" class="text-red-500 text-sm mt-2 hidden"></p>
+                    </div>
+                </div>
+                <div id="comparison-results" class="hidden mt-8 max-w-6xl mx-auto">
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // === Language & Translations ===
+        const translations = {
+            en: {
+                // General
+                'calculating': 'Calculating...',
+                'error': 'Error',
+                'media_file': 'Media file',
+                'not_found': 'Not found',
+                'page': 'Page',
+                'of': 'of',
+                'back': 'Back',
+                'forward': 'Forward',
+                // Landing page
+                'landing_title': 'Your Telegram Statistics',
+                'upload_button_main': 'Select history folder',
+                'upload_button_sub': 'Choose the folder exported from Telegram',
+                'consent_text': 'By uploading data, you consent to its processing by Alvin and the Chipmunks. All processing is done locally in your browser.',
+                // Upload Progress
+                'reading_file': 'Reading file...',
+                'processing_data': 'Processing data...',
+                'file_not_found_alert': 'result.json file not found.',
+                'incorrect_structure_alert': "'result.json' file has an incorrect structure.",
+                'no_personal_chats_alert': 'No personal chats with enough messages found in the file.',
+                'critical_error_alert': 'A critical error occurred: ',
+                // Modals
+                'select_chat_title': 'Select a chat to analyze',
+                'select_chat_subtitle': 'We found several personal chats in your file.',
+                'epicenter_replies_to': 'Replies to message:',
+                'close': 'Close',
+                // Stats Page Header
+                'header_chat_with': 'Chat with',
+                'change_chat_title': 'Change chat',
+                'header_subtitle': 'Analysis of your digital history',
+                // Section Titles
+                'section1_title': 'The Great Canvas of Your History',
+                'section1_subtitle': 'The scale of your communication in numbers.',
+                'section2_title': 'The Magic of Words and Text',
+                'section2_subtitle': 'Analysis of your text messages.',
+                'section3_title': 'Not Just Text',
+                'section3_subtitle': 'Analysis of everything you sent, besides words.',
+                'section4_title': 'The Rhythm of Your Communication',
+                'section4_subtitle': 'When and how intensely you are in touch.',
+                'section5_title': 'Achievements and Fun',
+                'section5_subtitle': 'Interactive elements that make statistics a game.',
+                'section6_title': 'Comparative Statistics 🤼',
+                'section6_subtitle': '"Wonder how you compare with others?"',
+                // Card Titles and Subtitles
+                'card_first_message_title': 'The Beginning of the Story 📜',
+                'card_first_message_subtitle': '"It all started with this..."',
+                'card_distance_title': 'Length of Correspondence ✈️',
+                'card_distance_subtitle': '"If your messages were a road..."',
+                'card_duration_title': 'Communication Duration ⏳',
+                'card_duration_subtitle': '"You have been together for..."',
+                'card_total_messages_title': 'Total Messages 💬',
+                'card_total_messages_subtitle': '"A lot has been said."',
+                'card_leader_title': 'Leader in Messages 🥇',
+                'card_leader_subtitle': '"Who is the most talkative here?"',
+                'card_word_cloud_title': 'Most Popular Words Cloud ☁️',
+                'card_word_cloud_subtitle': '"The words that define you."',
+                'card_unique_words_title': 'Unique Words ✒️',
+                'card_unique_words_subtitle': '"Your personal dictionary."',
+                'card_avg_length_title': 'Average Message Length 📏',
+                'card_avg_length_subtitle': '"Short and to the point, or epistolary genre?"',
+                'card_emoji_title': 'Emoji Analysis 😂',
+                'card_emoji_subtitle': '"When words are not enough."',
+                'card_questions_title': '"Question-Answer" Analysis 🤔',
+                'card_questions_subtitle': '"Who is the main questioner here?"',
+                'card_voice_title': 'Voice Message Statistics 🎙️',
+                'card_voice_subtitle': '"You\'ve talked enough for a whole podcast!"',
+                'card_stickers_title': 'Sticker Statistics ✨',
+                'card_stickers_subtitle': '"Kings and queens of stickers."',
+                'card_media_title': 'Multimedia Report 🖼️',
+                'card_media_subtitle': '"Your personal archive of moments."',
+                'card_links_title': 'Link Analysis 🔗',
+                'card_links_subtitle': '"What you google and watch together."',
+                'card_timeline_title': 'Communication Dynamics (Timeline) 📈',
+                'card_timeline_subtitle': '"How your story has changed over time."',
+                'card_hourly_title': 'Hourly Activity 🔥',
+                'card_hourly_subtitle': 'When your chat "burns" the brightest.',
+                'card_daily_avg_title': 'Average Messages Per Day 🗓️',
+                'card_daily_avg_subtitle': '"Your daily communication quota."',
+                'card_reply_time_title': 'Average Reply Time ⚡',
+                'card_reply_time_subtitle': '"Which of you is faster than lightning?"',
+                'card_achievements_title': 'Achievement System ("Achis") 🏆',
+                'card_achievements_subtitle': '"Your personal records."',
+                'card_epicenter_title': '"Epicenter of Conversation" 🔁',
+                'card_epicenter_subtitle': '"The message that sparked the most discussion."',
+                'card_nostalgia_title': '"On this day..." Function 🕰️',
+                'card_nostalgia_subtitle': '"Remember everything."',
+                'card_quote_title': 'Quote Generator.',
+                'card_quote_subtitle': '"The funniest from your chat."',
+                // Card Content & Units
+                'or_chars': '...or {0} symbols',
+                'year_sg': 'year', 'year_pl': 'years',
+                'month_sg': 'month', 'month_pl': 'months',
+                'day_sg': 'day', 'day_pl': 'days',
+                'chars_unit': 'chars.',
+                'emoji_not_found': 'No emoji found',
+                'voice_total': 'Total', 'voice_longest': 'Longest', 'voice_avg': 'Average',
+                'stickers_not_found': 'No stickers found',
+                'media_photo': 'Photos', 'media_video': 'Videos', 'media_gif': 'GIFs', 'media_files': 'Files',
+                'links_not_found': 'No links found', 'times_unit': 'times',
+                'chart_toggle_grouped': 'Side-by-side', 'chart_toggle_leader': 'Leader',
+                'chart_msg_count': 'Message count', 'chart_tooltip_msg_count': '{0} msgs',
+                'ach_novelist': 'Novelist', 'ach_novelist_desc': 'Longest text message',
+                'ach_singer': 'Singer', 'ach_singer_desc': 'Longest voice message',
+                'ach_nightwatch': 'Night Watch', 'ach_nightwatch_desc': 'Leader of night activity',
+                'ach_memelord': 'Memelord', 'ach_memelord_desc': 'Most media sent',
+                'epicenter_no_replies': 'No replies found',
+                'epicenter_replies_count': '{0} replies (click)',
+                'nostalgia_button': 'Show memory',
+                'nostalgia_no_memories': 'Unfortunately, no memories were found for this day.',
+                'quote_button': 'Generate quote',
+                'quote_no_quotes': 'No funny quotes with reactions found.',
+                // Comparison
+                'compare_button': 'Compare with another chat',
+                'compare_input_label': 'Enter the name of the person from the file',
+                'compare_input_placeholder': 'For example, John',
+                'compare_start_button': 'Compare',
+                'compare_error_enter_name': 'Please enter a name.',
+                'compare_error_self': 'You cannot compare a chat with itself.',
+                'compare_error_not_found': 'Chat with "{0}" not found in the file.',
+                'compare_analyzing': 'Analyzing second chat...',
+                'comp_metric': 'Metric', 'comp_total_msg': 'Total messages', 'comp_msg_per_day': 'Messages / day',
+                'comp_voice_count': 'Voice (count)', 'comp_voice_time': 'Voice (time)',
+                'comp_media_files': 'Media files', 'comp_total_chars': 'Total symbols',
+                'radar_messages': 'Messages', 'radar_daily': 'Daily Activity', 'radar_voice_count': 'Voice (count)',
+                'radar_voice_time': 'Voice (time)', 'radar_media': 'Media', 'radar_symbols': 'Symbols',
+                // time units
+                'time_s': 's', 'time_m': 'm', 'time_h': 'h'
+            },
+            uk: {
+                // General
+                'calculating': 'Розрахунок...',
+                'error': 'Помилка',
+                'media_file': 'Медіафайл',
+                'not_found': 'Не знайдено',
+                'page': 'Сторінка',
+                'of': 'з',
+                'back': 'Назад',
+                'forward': 'Вперед',
+                // Landing page
+                'landing_title': 'Статистика твого Telegram',
+                'upload_button_main': 'Вибрати папку з історією',
+                'upload_button_sub': 'Оберіть папку, експортовану з Telegram',
+                'consent_text': 'Завантажуючи дані на сайт, ви даєте згоду на їх опрацювання Елвіном та бурундуками. Вся обробка відбувається локально у вашому браузері.',
+                // Upload Progress
+                'reading_file': 'Читаю файл...',
+                'processing_data': 'Обробка даних...',
+                'file_not_found_alert': 'Файл result.json не знайдено.',
+                'incorrect_structure_alert': "Файл 'result.json' має некоректну структуру.",
+                'no_personal_chats_alert': 'У файлі не знайдено особистих чатів з достатньою кількістю повідомлень.',
+                'critical_error_alert': 'Сталася критична помилка: ',
+                // Modals
+                'select_chat_title': 'Оберіть чат для аналізу',
+                'select_chat_subtitle': 'Ми знайшли кілька особистих переписок у вашому файлі.',
+                'epicenter_replies_to': 'Відповіді на повідомлення:',
+                'close': 'Закрити',
+                // Stats Page Header
+                'header_chat_with': 'Переписка з',
+                'change_chat_title': 'Змінити чат',
+                'header_subtitle': 'Аналіз вашої цифрової історії',
+                // Section Titles
+                'section1_title': 'Велике Полотно Вашої Історії',
+                'section1_subtitle': 'Масштаб вашого спілкування у цифрах.',
+                'section2_title': 'Магія Слів та Тексту',
+                'section2_subtitle': 'Аналіз суті ваших текстових повідомлень.',
+                'section3_title': 'Не Текстом Єдиним',
+                'section3_subtitle': 'Аналіз усього, що ви надсилали, крім слів.',
+                'section4_title': 'Ритм Вашого Спілкування',
+                'section4_subtitle': 'Коли і з якою інтенсивністю ви на зв\'язку.',
+                'section5_title': 'Досягнення та Розваги',
+                'section5_subtitle': 'Інтерактивні елементи, які роблять статистику грою.',
+                'section6_title': 'Порівняльна статистика 🤼',
+                'section6_subtitle': '"Цікаво, а як у вас з іншими?"',
+                // Card Titles and Subtitles
+                'card_first_message_title': 'Початок історії 📜',
+                'card_first_message_subtitle': '"Все почалося з цього..."',
+                'card_distance_title': 'Довжина переписки ✈️',
+                'card_distance_subtitle': '"Якби ваші повідомлення були дорогою..."',
+                'card_duration_title': 'Тривалість спілкування ⏳',
+                'card_duration_subtitle': '"Ви разом вже..."',
+                'card_total_messages_title': 'Загальна кількість повідомлень 💬',
+                'card_total_messages_subtitle': '"Слів було сказано чимало."',
+                'card_leader_title': 'Лідер за повідомленнями 🥇',
+                'card_leader_subtitle': '"Хто тут найбалакучіший?"',
+                'card_word_cloud_title': 'Хмара найпопулярніших слів ☁️',
+                'card_word_cloud_subtitle': '"Слова, що визначають вас."',
+                'card_unique_words_title': 'Унікальні слова ✒️',
+                'card_unique_words_subtitle': '"Ваш особистий словник."',
+                'card_avg_length_title': 'Середня довжина повідомлення 📏',
+                'card_avg_length_subtitle': '"Коротко і по суті, чи епістолярний жанр?"',
+                'card_emoji_title': 'Аналіз емодзі 😂',
+                'card_emoji_subtitle': '"Коли слів недостатньо."',
+                'card_questions_title': 'Аналіз "Питання-Відповідь" 🤔',
+                'card_questions_subtitle': '"Хто тут головний чомучка?"',
+                'card_voice_title': 'Статистика голосових повідомлень 🎙️',
+                'card_voice_subtitle': '"Ви наговорили на цілий подкаст!"',
+                'card_stickers_title': 'Статистика по стікерах ✨',
+                'card_stickers_subtitle': '"Королі та королеви стікерів."',
+                'card_media_title': 'Мультимедійний звіт 🖼️',
+                'card_media_subtitle': '"Ваш особистий архів моментів."',
+                'card_links_title': 'Аналіз посилань 🔗',
+                'card_links_subtitle': '"Що ви гуглите та дивитесь разом."',
+                'card_timeline_title': 'Динаміка спілкування (Таймлайн) 📈',
+                'card_timeline_subtitle': '"Як змінювалась ваша історія з часом."',
+                'card_hourly_title': 'Активність по годинах 🔥',
+                'card_hourly_subtitle': 'Коли ваш чат "горить" найяскравіше.',
+                'card_daily_avg_title': 'Середня кількість повідомлень на день 🗓️',
+                'card_daily_avg_subtitle': '"Ваша щоденна норма спілкування."',
+                'card_reply_time_title': 'Середній час відповіді ⚡',
+                'card_reply_time_subtitle': '"Хто з вас швидше за блискавку?"',
+                'card_achievements_title': 'Система досягнень ("Ачівки") 🏆',
+                'card_achievements_subtitle': '"Ваші особисті рекорди."',
+                'card_epicenter_title': '"Епіцентр розмови" 🔁',
+                'card_epicenter_subtitle': '"Повідомлення, що викликало найбільше обговорень."',
+                'card_nostalgia_title': 'Функція "В цей день..." 🕰️',
+                'card_nostalgia_subtitle': '"Згадати все."',
+                'card_quote_title': 'Генератор цитат.',
+                'card_quote_subtitle': '"Найкумедніше з вашого чату."',
+                 // Card Content & Units
+                'or_chars': '...або {0} символів',
+                'year_sg': 'рік', 'year_pl2': 'роки', 'year_pl5': 'років',
+                'month_sg': 'місяць', 'month_pl2': 'місяці', 'month_pl5': 'місяців',
+                'day_sg': 'день', 'day_pl2': 'дні', 'day_pl5': 'днів',
+                'chars_unit': 'симв.',
+                'emoji_not_found': 'Емодзі не знайдено',
+                'voice_total': 'Загалом', 'voice_longest': 'Найдовше', 'voice_avg': 'В середньому',
+                'stickers_not_found': 'Стікерів не знайдено',
+                'media_photo': 'Фото', 'media_video': 'Відео', 'media_gif': 'GIF', 'media_files': 'Файли',
+                'links_not_found': 'Посилання не знайдено', 'times_unit': 'разів',
+                'chart_toggle_grouped': 'Поруч', 'chart_toggle_leader': 'Лідер',
+                'chart_msg_count': 'Кількість повідомлень', 'chart_tooltip_msg_count': '{0} пов.',
+                'ach_novelist': 'Романіст', 'ach_novelist_desc': 'Найдовше текст. пов.',
+                'ach_singer': 'Співак', 'ach_singer_desc': 'Найдовше голос. пов.',
+                'ach_nightwatch': 'Нічний дозор', 'ach_nightwatch_desc': 'Лідер нічної активності',
+                'ach_memelord': 'Мемлорд', 'ach_memelord_desc': 'Найбільше медіа',
+                'epicenter_no_replies': 'Відповідей не знайдено',
+                'epicenter_replies_count': '{0} відповідей (натисніть)',
+                'nostalgia_button': 'Показати спогад',
+                'nostalgia_no_memories': 'На жаль, спогадів на цей день не знайдено.',
+                'quote_button': 'Згенерувати цитату',
+                'quote_no_quotes': 'Кумедних цитат з реакціями не знайдено.',
+                // Comparison
+                'compare_button': 'Порівняти з іншим чатом',
+                'compare_input_label': "Введіть ім'я співрозмовника з файлу",
+                'compare_input_placeholder': 'Наприклад, Іван',
+                'compare_start_button': 'Порівняти',
+                'compare_error_enter_name': "Будь ласка, введіть ім'я.",
+                'compare_error_self': "Ви не можете порівнювати чат сам із собою.",
+                'compare_error_not_found': 'Чат з "{0}" не знайдено у файлі.',
+                'compare_analyzing': 'Аналізую другий чат...',
+                'comp_metric': 'Метрика', 'comp_total_msg': 'Всього повідомлень', 'comp_msg_per_day': 'Повідомлень / день',
+                'comp_voice_count': 'Голосових (к-сть)', 'comp_voice_time': 'Голосових (час)',
+                'comp_media_files': 'Медіафайлів', 'comp_total_chars': 'Всього символів',
+                'radar_messages': 'Повідомлення', 'radar_daily': 'Щоденна активність', 'radar_voice_count': 'Голосові (к-сть)',
+                'radar_voice_time': 'Голосові (час)', 'radar_media': 'Медіа', 'radar_symbols': 'Символи',
+                // time units
+                'time_s': 'с', 'time_m': 'хв', 'time_h': 'год'
+            }
+        };
+
+        let currentLang = 'en';
+
+        const stopWords = {
+            uk: new Set(["і", "в", "та", "на", "з", "до", "по", "за", "у", "не", "що", "це", "як", "але", "так", "ти", "я", "ми", "ви", "він", "вона", "воно", "вони", "його", "її", "їх", "тобі", "мені", "нас", "вас", "про", "для", "ще", "вже", "тут", "там", "то", "від", "без", "чи", "би", "ж", "ось", "або", "все", "всі", "всю", "мене", "буде", "якщо", "тому", "тебе", "теж", "тільки", "щоб", "навіть", "було", "коли", "щось","потім","взагалі","тоді","буду"]),
+            en: new Set(["i", "me", "my", "myself", "we", "our", "ours", "ourselves", "you", "your", "yours", "yourself", "yourselves", "he", "him", "his", "himself", "she", "her", "hers", "herself", "it", "its", "itself", "they", "them", "their", "theirs", "themselves", "what", "which", "who", "whom", "this", "that", "these", "those", "am", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "having", "do", "does", "did", "doing", "a", "an", "the", "and", "but", "if", "or", "because", "as", "until", "while", "of", "at", "by", "for", "with", "about", "against", "between", "into", "through", "during", "before", "after", "above", "below", "to", "from", "up", "down", "in", "out", "on", "off", "over", "under", "again", "further", "then", "once", "here", "there", "when", "where", "why", "how", "all", "any", "both", "each", "few", "more", "most", "other", "some", "such", "no", "nor", "not", "only", "own", "same", "so", "than", "too", "very", "s", "t", "can", "will", "just", "don", "should", "now"])
+        };
+
+        function setLanguage(lang) {
+            if (!translations[lang]) return;
+            currentLang = lang;
+            document.documentElement.lang = lang;
+            localStorage.setItem('telegramStatsLang', lang);
+
+            document.querySelectorAll('[data-translate-key]').forEach(el => {
+                const key = el.dataset.translateKey;
+                if (translations[lang][key]) {
+                    el.innerHTML = translations[lang][key];
+                }
+            });
+            
+            document.querySelectorAll('[data-translate-placeholder]').forEach(el => {
+                const key = el.dataset.translatePlaceholder;
+                if (translations[lang][key]) {
+                    el.placeholder = translations[lang][key];
+                }
+            });
+
+            document.querySelectorAll('[data-translate-title]').forEach(el => {
+                const key = el.dataset.translateTitle;
+                if (translations[lang][key]) {
+                    el.title = translations[lang][key];
+                }
+            });
+            
+            // Re-render dynamic content if it exists
+            if (chatData) {
+                runAllCalculations(); 
+                if (document.getElementById('comparison-results').innerHTML) {
+                    runComparison();
+                }
+            }
+        }
+        
+        // Helper to get translation
+        const T = (key, ...args) => {
+            let str = translations[currentLang][key] || key;
+            args.forEach((arg, index) => {
+                str = str.replace(`{${index}}`, arg);
+            });
+            return str;
+        };
+
+        const uploadButton = document.getElementById('upload-button');
+        const fileInput = document.getElementById('file-input');
+        const landingPage = document.getElementById('landing-page');
+        const chatSelectionModal = document.getElementById('chat-selection-modal');
+        const chatListContainer = document.getElementById('chat-list-container');
+        const paginationContainer = document.getElementById('pagination-container');
+        
+        let allChats = [];
+        let personalChats = [];
+        let chatData = null;
+        let mainUser = '';
+        let user1 = '';
+        let user2 = '';
+        let timelineChartInstance = null;
+        let hourlyChartInstance = null;
+        let comparisonRadarChartInstance = null;
+        let hourlyActivityData = {};
+        let currentPage = 1;
+        const chatsPerPage = 10;
+
+        uploadButton.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleFileSelect);
+
+        async function handleFileSelect(event) {
+            const files = event.target.files;
+            const jsonFile = Array.from(files).find(file => file.name === 'result.json');
+
+            if (!jsonFile) {
+                alert(T('file_not_found_alert'));
+                return;
+            }
+
+            const progressContainer = document.createElement('div');
+            progressContainer.className = 'flex items-center justify-center';
+            const spinner = document.createElement('div');
+            spinner.className = 'spinner';
+            const progressStatusEl = document.createElement('p');
+            progressStatusEl.className = 'text-lg font-semibold text-blue-700';
+            progressStatusEl.textContent = T('reading_file');
+            progressContainer.append(spinner, progressStatusEl);
+            uploadButton.innerHTML = '';
+            uploadButton.append(progressContainer);
+
+            try {
+                const fileContent = await jsonFile.text();
+                progressStatusEl.textContent = T('processing_data');
+                await new Promise(resolve => setTimeout(resolve, 50));
+                
+                const rawData = JSON.parse(fileContent);
+
+                if (!rawData?.chats?.list) {
+                    throw new Error(T('incorrect_structure_alert'));
+                }
+
+                allChats = rawData.chats.list;
+                personalChats = allChats.filter(c => c.type === 'personal_chat' && c.messages?.length > 100);
+                
+                if (personalChats.length === 0) {
+                    throw new Error(T('no_personal_chats_alert'));
+                }
+                
+                mainUser = findMainUser(personalChats);
+                currentPage = 1;
+                displayChatSelectionModal();
+
+            } catch (error) {
+                console.error("Критична помилка обробки файлу:", error);
+                alert(`${T('critical_error_alert')}${error.message}.`);
+                document.getElementById('upload-button-content').parentElement.innerHTML = `
+                    <div id="upload-button-content" class="flex flex-col items-center justify-center">
+                        <svg class="w-16 h-16 text-gray-400 group-hover:text-blue-600 transition-colors duration-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l-3.75 3.75M12 9.75l3.75 3.75M3 13.5v-3a9 9 0 0118 0v3" /></svg>
+                        <p class="mt-4 text-xl font-semibold text-gray-700 group-hover:text-blue-700 transition-colors duration-300" data-translate-key="upload_button_main">${T('upload_button_main')}</p>
+                        <p class="mt-2 text-base text-gray-500" data-translate-key="upload_button_sub">${T('upload_button_sub')}</p>
+                    </div>`;
+            }
+        }
+
+        function findMainUser(chats) {
+            const participantCounts = {};
+            chats.forEach(chat => {
+                const participants = new Set();
+                chat.messages.slice(0, 100).forEach(msg => {
+                    if(msg.from) participants.add(msg.from);
+                });
+                participants.forEach(p => {
+                    participantCounts[p] = (participantCounts[p] || 0) + 1;
+                });
+            });
+            
+            let likelyMainUser = '';
+            let maxCount = 0;
+            for (const [user, count] of Object.entries(participantCounts)) {
+                if (count > maxCount) {
+                    maxCount = count;
+                    likelyMainUser = user;
+                }
+            }
+            return likelyMainUser;
+        }
+
+        function displayChatSelectionModal() {
+            chatListContainer.innerHTML = '';
+            const chatsToShow = personalChats.slice((currentPage - 1) * chatsPerPage, currentPage * chatsPerPage);
+
+            chatsToShow.forEach(chat => {
+                const button = document.createElement('button');
+                button.className = 'w-full text-left p-3 bg-gray-100 hover:bg-blue-100 rounded-lg transition';
+                button.textContent = chat.name;
+                button.onclick = () => {
+                    selectChat(chat.id);
+                };
+                chatListContainer.appendChild(button);
+            });
+
+            renderPaginationControls();
+            chatSelectionModal.classList.add('visible');
+        }
+
+        function renderPaginationControls() {
+            paginationContainer.innerHTML = '';
+            const totalPages = Math.ceil(personalChats.length / chatsPerPage);
+            if (totalPages <= 1) return;
+
+            const prevButton = document.createElement('button');
+            prevButton.textContent = T('back');
+            prevButton.className = 'px-4 py-2 bg-gray-200 rounded-md mr-2 disabled:opacity-50';
+            prevButton.disabled = currentPage === 1;
+            prevButton.onclick = () => {
+                currentPage--;
+                displayChatSelectionModal();
+            };
+
+            const nextButton = document.createElement('button');
+            nextButton.textContent = T('forward');
+            nextButton.className = 'px-4 py-2 bg-gray-200 rounded-md disabled:opacity-50';
+            nextButton.disabled = currentPage === totalPages;
+            nextButton.onclick = () => {
+                currentPage++;
+                displayChatSelectionModal();
+            };
+            
+            const pageInfo = document.createElement('span');
+            pageInfo.textContent = `${T('page')} ${currentPage} ${T('of')} ${totalPages}`;
+            pageInfo.className = 'mx-4 text-sm text-gray-600';
+
+            paginationContainer.append(prevButton, pageInfo, nextButton);
+        }
+
+        function selectChat(chatId) {
+            chatData = allChats.find(c => c.id === chatId);
+            if (!chatData) {
+                alert(T('error'));
+                return;
+            }
+            user1 = mainUser;
+            user2 = chatData.name;
+            startAnalysis();
+        }
+
+        function startAnalysis() {
+            chatSelectionModal.classList.remove('visible');
+            
+            resetStatsPage(); 
+            populateComparisonSuggestions();
+
+            const validMessages = chatData.messages.filter(m => m && m.date);
+            validMessages.sort((a, b) => new Date(a.date) - new Date(b.date));
+            chatData.messages = validMessages;
+            
+            landingPage.style.opacity = '0';
+            setTimeout(() => {
+                landingPage.classList.add('hidden');
+                document.getElementById('stats-page').classList.remove('hidden');
+                document.getElementById('header-wrapper').classList.remove('hidden');
+
+                const headerContainer = document.getElementById('header-container');
+                const headerSubtitle = document.getElementById('header-subtitle');
+                
+                document.getElementById('chat-partner-name').textContent = user2;
+                
+                headerContainer.style.transform = `translateY(calc(50vh - 50%)) scale(1.2)`;
+                headerSubtitle.style.opacity = '0';
+
+                requestAnimationFrame(() => {
+                    setTimeout(() => {
+                        headerContainer.style.transform = `translateY(0) scale(1)`;
+                    }, 50);
+                });
+
+                setTimeout(() => {
+                    headerSubtitle.style.opacity = '1';
+                    document.getElementById('stats-blocks-container').style.opacity = '1';
+                    runAllCalculations();
+                    setupScrollAnimations();
+                }, 1600);
+
+            }, 500);
+        }
+        
+        async function runComparison() {
+            const comparisonError = document.getElementById('comparison-error');
+            const comparisonResults = document.getElementById('comparison-results');
+            const compareNameInput = document.getElementById('compare-name-input');
+            const targetName = compareNameInput.value.trim();
+            if (!targetName) {
+                comparisonError.textContent = T('compare_error_enter_name');
+                comparisonError.classList.remove('hidden');
+                return;
+            }
+            if (targetName === user2) {
+                comparisonError.textContent = T('compare_error_self');
+                comparisonError.classList.remove('hidden');
+                return;
+            }
+
+            const targetChat = allChats.find(c => c.type === 'personal_chat' && c.name === targetName);
+
+            if (!targetChat) {
+                comparisonError.textContent = T('compare_error_not_found', targetName);
+                comparisonError.classList.remove('hidden');
+                return;
+            }
+            
+            comparisonError.classList.add('hidden');
+            comparisonResults.innerHTML = `<div class="flex justify-center items-center p-8"><div class="spinner"></div><p>${T('compare_analyzing')}</p></div>`;
+            comparisonResults.classList.remove('hidden');
+            comparisonResults.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            const metricsCurrent = getComparisonMetrics(chatData.messages);
+            const metricsCompare = getComparisonMetrics(targetChat.messages);
+
+            displayComparisonResults(metricsCurrent, metricsCompare, user2, targetName);
+            renderComparisonRadarChart(metricsCurrent, metricsCompare, user2, targetName);
+        }
+        
+        function getComparisonMetrics(messages) {
+            if (!messages || messages.length === 0) {
+                return { total: 0, voiceTotal: 0, voiceDuration: 0, mediaTotal: 0, dailyAvg: 0, charsTotal: 0 };
+            }
+            
+            const sortedMessages = [...messages].sort((a, b) => new Date(a.date) - new Date(b.date));
+            const firstDate = new Date(sortedMessages[0].date);
+            const lastDate = new Date(sortedMessages[sortedMessages.length - 1].date);
+            const days = Math.max(1, Math.round((lastDate - firstDate) / (1000 * 60 * 60 * 24)));
+
+            const voiceMessages = messages.filter(m => m.media_type === 'voice_message' && typeof m.duration_seconds === 'number');
+            
+            let mediaTotal = 0;
+            messages.forEach(m => {
+                if (m.photo || m.media_type === 'video_message' || m.media_type === 'video_file' || m.media_type === 'animation' || m.file) mediaTotal++;
+            });
+            
+            const charsTotal = messages.reduce((sum, msg) => sum + (Array.isArray(msg.text) ? msg.text.map(t => t.text || t).join('') : (msg.text || '')).length, 0);
+
+            return {
+                total: messages.length,
+                voiceTotal: voiceMessages.length,
+                voiceDuration: voiceMessages.reduce((sum, m) => sum + m.duration_seconds, 0),
+                mediaTotal,
+                dailyAvg: Math.round(messages.length / days),
+                charsTotal
+            };
+        }
+
+        function displayComparisonResults(metrics1, metrics2, name1, name2) {
+            const comparisonResults = document.getElementById('comparison-results');
+            comparisonResults.innerHTML = `
+                <div class="bg-white p-6 rounded-2xl shadow-lg flex flex-col md:flex-row gap-8 items-center">
+                    <div class="w-full md:w-2/5">
+                        <canvas id="comparison-radar-chart"></canvas>
+                    </div>
+                    <div class="w-full md:w-3/5">
+                        <table class="w-full border-collapse text-sm md:text-base">
+                            <thead>
+                                <tr>
+                                    <th class="p-2 text-left border-b font-semibold text-gray-600">${T('comp_metric')}</th>
+                                    <th class="p-2 text-center border-b font-semibold text-blue-600">${name1}</th>
+                                    <th class="p-2 text-center border-b font-semibold text-green-600">${name2}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td class="p-2 border-b">${T('comp_total_msg')}</td><td class="p-2 border-b text-center font-bold text-lg">${metrics1.total.toLocaleString(currentLang === 'uk' ? 'uk-UA' : 'en-US')}</td><td class="p-2 border-b text-center font-bold text-lg">${metrics2.total.toLocaleString(currentLang === 'uk' ? 'uk-UA' : 'en-US')}</td></tr>
+                                <tr><td class="p-2 border-b">${T('comp_msg_per_day')}</td><td class="p-2 border-b text-center font-bold text-lg">${metrics1.dailyAvg}</td><td class="p-2 border-b text-center font-bold text-lg">${metrics2.dailyAvg}</td></tr>
+                                <tr><td class="p-2 border-b">${T('comp_voice_count')}</td><td class="p-2 border-b text-center font-bold text-lg">${metrics1.voiceTotal}</td><td class="p-2 border-b text-center font-bold text-lg">${metrics2.voiceTotal}</td></tr>
+                                <tr><td class="p-2 border-b">${T('comp_voice_time')}</td><td class="p-2 border-b text-center font-bold text-lg">${formatTime(metrics1.voiceDuration)}</td><td class="p-2 border-b text-center font-bold text-lg">${formatTime(metrics2.voiceDuration)}</td></tr>
+                                <tr><td class="p-2 border-b">${T('comp_media_files')}</td><td class="p-2 border-b text-center font-bold text-lg">${metrics1.mediaTotal.toLocaleString(currentLang === 'uk' ? 'uk-UA' : 'en-US')}</td><td class="p-2 border-b text-center font-bold text-lg">${metrics2.mediaTotal.toLocaleString(currentLang === 'uk' ? 'uk-UA' : 'en-US')}</td></tr>
+                                <tr><td class="p-2">${T('comp_total_chars')}</td><td class="p-2 text-center font-bold text-lg">${metrics1.charsTotal.toLocaleString(currentLang === 'uk' ? 'uk-UA' : 'en-US')}</td><td class="p-2 text-center font-bold text-lg">${metrics2.charsTotal.toLocaleString(currentLang === 'uk' ? 'uk-UA' : 'en-US')}</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderComparisonRadarChart(metrics1, metrics2, name1, name2) {
+            if (comparisonRadarChartInstance) {
+                comparisonRadarChartInstance.destroy();
+            }
+            const ctx = document.getElementById('comparison-radar-chart').getContext('2d');
+            const labels = [T('radar_messages'), T('radar_daily'), T('radar_voice_count'), T('radar_voice_time'), T('radar_media'), T('radar_symbols')];
+            
+            const normalize = (val1, val2) => {
+                const max = Math.max(val1, val2, 1);
+                return [ (val1 / max) * 100, (val2 / max) * 100 ];
+            };
+
+            const [normTotal, normTotal2] = normalize(metrics1.total, metrics2.total);
+            const [normDaily, normDaily2] = normalize(metrics1.dailyAvg, metrics2.dailyAvg);
+            const [normVoiceTotal, normVoiceTotal2] = normalize(metrics1.voiceTotal, metrics2.voiceTotal);
+            const [normVoiceDuration, normVoiceDuration2] = normalize(metrics1.voiceDuration, metrics2.voiceDuration);
+            const [normMedia, normMedia2] = normalize(metrics1.mediaTotal, metrics2.mediaTotal);
+            const [normChars, normChars2] = normalize(metrics1.charsTotal, metrics2.charsTotal);
+
+            const data1 = [normTotal, normDaily, normVoiceTotal, normVoiceDuration, normMedia, normChars];
+            const data2 = [normTotal2, normDaily2, normVoiceTotal2, normVoiceDuration2, normMedia2, normChars2];
+
+            comparisonRadarChartInstance = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: name1, data: data1, backgroundColor: 'rgba(59, 130, 246, 0.2)', borderColor: 'rgba(59, 130, 246, 1)', borderWidth: 2 },
+                        { label: name2, data: data2, backgroundColor: 'rgba(22, 163, 74, 0.2)', borderColor: 'rgba(22, 163, 74, 1)', borderWidth: 2 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: { r: { angleLines: { display: false }, suggestedMin: 0, suggestedMax: 100, pointLabels: { font: { size: 12 } }, ticks: { display: false } } },
+                    plugins: { tooltip: { callbacks: { label: (context) => `${context.dataset.label}: ${Math.round(context.raw)}%` } } }
+                }
+            });
+        }
+        
+        const cardIds = [
+            'card-first-message', 'card-duration', 'card-total-messages', 'card-leader', 'card-distance', 
+            'card-word-cloud', 'card-emoji', 'card-avg-length', 'card-unique-words', 'card-questions', 
+            'card-voice', 'card-stickers', 'card-media', 'card-links', 
+            'card-timeline', 'card-hourly-activity', 'card-daily-avg', 'card-reply-time',
+            'card-achievements', 'card-epicenter', 'card-nostalgia', 'card-quote'
+        ];
+        function runAllCalculations() {
+            const { messages } = chatData;
+            const messagesById = new Map(messages.map(m => [m.id, m]));
+
+            cardIds.forEach(cardId => {
+                const card = document.getElementById(cardId);
+                if (card) {
+                    const placeholder = card.querySelector('.loading-placeholder p');
+                    if (placeholder) placeholder.textContent = T('calculating');
+                }
+            });
+
+            const calculationFunctions = [
+                () => analyzeBlock1_FirstMessage(messages), () => analyzeBlock1_Duration(messages), () => analyzeBlock1_TotalMessages(messages), () => analyzeBlock1_Leader(messages, user1, user2), () => analyzeBlock1_Distance(messages),
+                () => analyzeBlock2_WordCloud(messages), () => analyzeBlock2_Emoji(messages), () => analyzeBlock2_AvgLength(messages, user1, user2), () => analyzeBlock2_UniqueWords(messages, user1, user2), () => analyzeBlock2_Questions(messages, user1, user2),
+                () => analyzeBlock3_Voice(messages), () => analyzeBlock3_Stickers(messages, user1, user2), () => analyzeBlock3_Media(messages), () => analyzeBlock3_Links(messages),
+                () => analyzeBlock4_Timeline(messages), () => analyzeBlock4_HourlyActivity(messages, user1, user2), () => analyzeBlock4_DailyAvg(messages), () => analyzeBlock4_ReplyTime(messages, messagesById, user1, user2),
+                () => analyzeBlock5_Achievements(messages, user1, user2), () => analyzeBlock5_Epicenter(messages, messagesById), () => analyzeBlock5_Nostalgia(messages), () => analyzeBlock5_Quote(messages),
+            ];
+            
+            cardIds.forEach((cardId, index) => {
+                calculateAndDisplay(cardId, calculationFunctions[index]);
+            });
+        }
+        async function calculateAndDisplay(cardId, calculationFn) {
+            const card = document.getElementById(cardId);
+            if (!card) return;
+            const placeholder = card.querySelector('.loading-placeholder');
+            const content = card.querySelector('.stat-content');
+            
+            try {
+                await new Promise(resolve => setTimeout(resolve, Math.random() * 1500 + 500));
+                await calculationFn();
+                if (placeholder) placeholder.classList.add('hidden');
+                if (content) content.classList.remove('hidden');
+            } catch (error) {
+                console.error(`Помилка в картці ${cardId}:`, error);
+                if (placeholder) placeholder.innerHTML = `<p class="text-red-500">${T('error')}</p>`;
+            }
+        }
+        function getInitials(name) {
+            if (!name) return '?';
+            const cleanedName = name.replace(/[^\p{L}\p{N}_]/gu, '');
+            if (cleanedName.length > 0) return cleanedName[0].toUpperCase();
+            return name[0];
+        }
+
+        function getPlural(number, lang, forms) {
+            // forms = { sg, pl2, pl5 }
+            if (lang === 'en') {
+                return number === 1 ? forms.sg : forms.pl;
+            }
+            if (lang === 'uk') {
+                const n = Math.abs(number) % 100;
+                const n1 = n % 10;
+                if (n > 10 && n < 20) return forms.pl5;
+                if (n1 > 1 && n1 < 5) return forms.pl2;
+                if (n1 === 1) return forms.sg;
+                return forms.pl5;
+            }
+            return forms.sg; // fallback
+        }
+
+        function formatDuration(ms) {
+            const days = Math.floor(ms / (1000 * 60 * 60 * 24));
+            const years = Math.floor(days / 365);
+            const months = Math.floor((days % 365) / 30);
+            const remainingDays = days % 30;
+            return { years, months, days: remainingDays };
+        }
+        function formatTime(seconds) {
+            if (isNaN(seconds) || seconds <= 0) return `0 ${T('time_s')}`;
+            if (seconds < 60) return `${Math.round(seconds)} ${T('time_s')}`;
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = Math.round(seconds % 60);
+            if (minutes < 60) return `${minutes} ${T('time_m')} ${remainingSeconds} ${T('time_s')}`;
+            const hours = Math.floor(minutes / 60);
+            const remainingMinutes = minutes % 60;
+            return `${hours} ${T('time_h')} ${remainingMinutes} ${T('time_m')}`;
+        }
+        
+        function analyzeBlock1_FirstMessage(messages) {
+            const firstMsg = messages[0];
+            document.getElementById('first-msg-author').textContent = firstMsg.from;
+            document.getElementById('first-msg-text').textContent = Array.isArray(firstMsg.text) ? firstMsg.text.map(t => t.text || t).join('') : (firstMsg.text || T('media_file'));
+            document.getElementById('first-msg-date').textContent = new Date(firstMsg.date).toLocaleString(currentLang === 'uk' ? 'uk-UA' : 'en-US');
+        }
+        function analyzeBlock1_Duration(messages) {
+            const firstDate = new Date(messages[0].date);
+            const lastDate = new Date(messages[messages.length - 1].date);
+            const { years, months, days } = formatDuration(lastDate - firstDate);
+            const yearText = getPlural(years, currentLang, { sg: T('year_sg'), pl: T('year_pl'), pl2: T('year_pl2'), pl5: T('year_pl5') });
+            const monthText = getPlural(months, currentLang, { sg: T('month_sg'), pl: T('month_pl'), pl2: T('month_pl2'), pl5: T('month_pl5') });
+            const dayText = getPlural(days, currentLang, { sg: T('day_sg'), pl: T('day_pl'), pl2: T('day_pl2'), pl5: T('day_pl5') });
+
+            document.getElementById('duration-years').textContent = `${years} ${yearText}`;
+            document.getElementById('duration-details').textContent = `${months} ${monthText}, ${days} ${dayText}`;
+        }
+        function analyzeBlock1_TotalMessages(messages) {
+            document.getElementById('total-messages-count').textContent = messages.length.toLocaleString(currentLang === 'uk' ? 'uk-UA' : 'en-US');
+        }
+        function analyzeBlock1_Leader(messages, user1, user2) {
+            let count1 = 0, count2 = 0;
+            messages.forEach(msg => {
+                if (msg.from === user1) count1++;
+                else if (msg.from === user2) count2++;
+            });
+            const total = count1 + count2;
+            const perc1 = total > 0 ? Math.round((count1 / total) * 100) : 0;
+            const perc2 = total > 0 ? 100 - perc1 : 0;
+            const container = document.getElementById('leader-content');
+            container.innerHTML = `<div class="flex items-center space-x-3"><img src="https://placehold.co/40x40/7F9CF5/FFFFFF?text=${getInitials(user1)}" alt="${user1}" class="w-10 h-10 rounded-full"><div class="w-full bg-gray-200 rounded-full h-4"><div class="bg-indigo-500 h-4 rounded-full" style="width: ${perc1}%"></div></div><span class="font-bold text-indigo-500 w-12 text-right">${perc1}%</span></div><div class="flex items-center space-x-3"><img src="https://placehold.co/40x40/F472B6/FFFFFF?text=${getInitials(user2)}" alt="${user2}" class="w-10 h-10 rounded-full"><div class="w-full bg-gray-200 rounded-full h-4"><div class="bg-pink-500 h-4 rounded-full" style="width: ${perc2}%"></div></div><span class="font-bold text-pink-500 w-12 text-right">${perc2}%</span></div>`;
+        }
+        function analyzeBlock1_Distance(messages) {
+            const routes = {
+                en: [{ from: 'Vinnytsia', to: 'Paris' }, { from: 'Kyiv', to: 'Zurich' }, { from: 'Lviv', to: 'New York' }, { from: 'Odesa', to: 'Tokyo' }, { from: 'Kharkiv', to: 'Dubai' }],
+                uk: [{ from: 'Вінниця', to: 'Париж' }, { from: 'Київ', to: 'Цюрих' }, { from: 'Львів', to: 'Нью-Йорк' }, { from: 'Одеса', to: 'Токіо' }, { from: 'Харків', to: 'Дубай' }]
+            };
+            const route = routes[currentLang][Math.floor(Math.random() * routes[currentLang].length)];
+            document.getElementById('city-from').textContent = route.from;
+            document.getElementById('city-to').textContent = route.to;
+            const totalChars = messages.reduce((sum, msg) => sum + (Array.isArray(msg.text) ? msg.text.map(t => t.text || t).join('') : (msg.text || '')).length, 0);
+            const km = (totalChars / 6000).toFixed(1);
+            document.getElementById('distance-km').textContent = `${km} km`;
+            document.getElementById('distance-chars').textContent = T('or_chars', totalChars.toLocaleString(currentLang === 'uk' ? 'uk-UA' : 'en-US'));
+        }
+        
+        function resetStatsPage() {
+            const cards = document.querySelectorAll('.stat-card');
+            cards.forEach(card => {
+                const placeholder = card.querySelector('.loading-placeholder');
+                const content = card.querySelector('.stat-content');
+                if (placeholder) {
+                    placeholder.classList.remove('hidden');
+                    placeholder.querySelector('p').textContent = T('calculating');
+                }
+                if (content) content.classList.add('hidden');
+            });
+
+            if (timelineChartInstance) {
+                timelineChartInstance.destroy();
+                timelineChartInstance = null;
+            }
+            if (hourlyChartInstance) {
+                hourlyChartInstance.destroy();
+                hourlyChartInstance = null;
+            }
+            if (comparisonRadarChartInstance) {
+                comparisonRadarChartInstance.destroy();
+                comparisonRadarChartInstance = null;
+            }
+            
+            document.getElementById('word-cloud-container').innerHTML = '';
+            document.getElementById('epicenter-content-wrapper').innerHTML = '';
+            document.getElementById('nostalgia-card').innerHTML = '';
+            document.getElementById('nostalgia-card').classList.add('hidden');
+            document.getElementById('quote-card').innerHTML = '';
+            document.getElementById('quote-card').classList.add('hidden');
+            document.getElementById('comparison-results').innerHTML = '';
+            document.getElementById('comparison-results').classList.add('hidden');
+            document.getElementById('comparison-setup').classList.add('hidden');
+
+            document.getElementById('epicenter-content-wrapper').onclick = null;
+        }
+
+        function analyzeBlock2_WordCloud(messages) {
+            const wordCounts = {};
+            const currentStopWords = stopWords[currentLang];
+            messages.forEach(msg => {
+                const text = Array.isArray(msg.text) ? msg.text.map(t => t.text || t).join('') : (msg.text || '');
+                if (text) text.toLowerCase().split(/[\s,.\-!?]+/).forEach(word => { if (word.length > 2 && !currentStopWords.has(word)) wordCounts[word] = (wordCounts[word] || 0) + 1; });
+            });
+            const sortedWords = Object.entries(wordCounts).sort((a, b) => b[1] - a[1]).slice(0, 25);
+            const maxCount = sortedWords.length > 0 ? sortedWords[0][1] : 1;
+            const minCount = sortedWords.length > 0 ? sortedWords[sortedWords.length - 1][1] : 1;
+            const colors = ['bg-blue-400', 'bg-indigo-400', 'bg-pink-400', 'bg-gray-500', 'bg-blue-300'];
+            
+            const container = document.getElementById('word-cloud-container');  
+            
+            if (!container) return;
+
+            container.innerHTML = sortedWords.map(([word, count], i) => {
+                const range = maxCount - minCount;
+                const sizeRatio = range > 0 ? (count - minCount) / range : 0.5;
+                const size = 40 + sizeRatio * 60;
+                const fontSize = 12 + sizeRatio * 12;
+                
+                return `<div class="flex items-center justify-center rounded-full text-white font-bold p-2 leading-tight ${colors[i % colors.length]}" 
+                               style="width: ${size}px; height: ${size}px; font-size: ${fontSize}px;">${word}</div>`;
+            }).join('');
+        }
+
+        function analyzeBlock2_Emoji(messages) {
+            const emojiCounts = {};
+            const emojiRegex = /(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])/g;
+            messages.forEach(msg => {
+                const text = Array.isArray(msg.text) ? msg.text.map(t => (typeof t === 'string' ? t : t.text) || '').join('') : (msg.text || '');
+                if (typeof text === 'string' && text) {
+                    const emojis = text.match(emojiRegex);
+                    if (emojis) {
+                        emojis.forEach(emoji => {
+                            if (typeof emoji === 'string' && emoji.trim()) {
+                                emojiCounts[emoji] = (emojiCounts[emoji] || 0) + 1;
+                            }
+                        });
+                    }
+                }
+                if (msg.reactions) {
+                    msg.reactions.forEach(r => {
+                        if (r && typeof r.emoji === 'string' && r.emoji.trim()) {
+                            emojiCounts[r.emoji] = (emojiCounts[r.emoji] || 0) + r.count;
+                        }
+                    });
+                }
+            });
+            const sortedEmojis = Object.entries(emojiCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+            const grid = document.getElementById('emoji-grid');
+            if (sortedEmojis.length > 0) {
+                grid.innerHTML = sortedEmojis.map(([emoji, count]) => `
+                    <div class="flex flex-col items-center justify-center bg-gray-100 rounded-xl p-2 w-20 h-20">
+                        <span class="text-4xl">${emoji}</span>
+                        <span class="font-bold text-gray-700 mt-1">${count}</span>
+                    </div>
+                `).join('');
+            } else {
+                grid.innerHTML = `<p class="col-span-full text-gray-500">${T('emoji_not_found')}</p>`;
+            }
+        }
+        
+        function analyzeBlock2_AvgLength(messages, user1, user2) {
+            let len1 = 0, count1 = 0, len2 = 0, count2 = 0;
+            messages.forEach(msg => {
+                const text = Array.isArray(msg.text) ? msg.text.map(t => t.text || t).join('') : (msg.text || '');
+                if (text) {
+                    if (msg.from === user1) { len1 += text.length; count1++; }
+                    else if (msg.from === user2) { len2 += text.length; count2++; }
+                }
+            });
+            document.getElementById('avg-length-content').innerHTML = `<div class="text-center"><p class="font-semibold text-indigo-600">${user1}</p><p class="text-3xl font-bold">${count1 > 0 ? Math.round(len1 / count1) : 0} ${T('chars_unit')}</p></div><div class="text-center"><p class="font-semibold text-pink-600">${user2}</p><p class="text-3xl font-bold">${count2 > 0 ? Math.round(len2 / count2) : 0} ${T('chars_unit')}</p></div>`;
+        }
+        
+        function analyzeBlock2_UniqueWords(messages, user1, user2) {
+            const words1 = {}, words2 = {};
+            const currentStopWords = stopWords[currentLang];
+            messages.forEach(msg => {
+                const text = (Array.isArray(msg.text) ? msg.text.map(t => t.text || t).join('') : (msg.text || '')).toLowerCase();
+                const targetDict = msg.from === user1 ? words1 : (msg.from === user2 ? words2 : null);
+                if (targetDict) text.split(/[\s,.\-!?]+/).forEach(word => { if (word.length > 4 && !currentStopWords.has(word)) targetDict[word] = (targetDict[word] || 0) + 1; });
+            });
+            
+            const findTopUnique = (dictA, dictB) => Object.entries(dictA).map(([word, countA]) => ({ word, ratio: countA / ((dictB[word] || 0) + 1), countA })).filter(item => item.ratio > 10 && item.countA > 5).sort((a, b) => b.countA - a.countA).slice(0, 5);
+            
+            const uniqueTo1 = findTopUnique(words1, words2);
+            const uniqueTo2 = findTopUnique(words2, words1);
+
+            const createWordListHTML = (words, color) => {
+                if (words.length === 0) return `<p class="text-center text-gray-500 mt-4">${T('not_found')}</p>`;
+                return words.map(item => `
+                    <div class="flex justify-between items-center bg-gray-100 rounded-lg px-3 py-2">
+                        <span class="font-medium text-gray-800">${item.word}</span>
+                        <span class="font-bold text-sm ${color}">${item.countA}</span>
+                    </div>
+                `).join('');
+            };
+
+            document.getElementById('unique-words-content').innerHTML = `
+                <div>
+                    <h5 class="font-bold text-center text-indigo-600 mb-2">${user1}</h5>
+                    <div class="space-y-2">${createWordListHTML(uniqueTo1, 'text-indigo-600')}</div>
+                </div>
+                <div>
+                    <h5 class="font-bold text-center text-pink-600 mb-2">${user2}</h5>
+                    <div class="space-y-2">${createWordListHTML(uniqueTo2, 'text-pink-600')}</div>
+                </div>`;
+        }
+        
+        function analyzeBlock2_Questions(messages, user1, user2) {
+            let q1 = 0, q2 = 0;
+            messages.forEach(msg => {
+                const text = Array.isArray(msg.text) ? msg.text.map(t => t.text || t).join('') : (msg.text || '');
+                if (text.includes('?')) {
+                    if (msg.from === user1) q1++;
+                    else if (msg.from === user2) q2++;
+                }
+            });
+            document.getElementById('questions-content').innerHTML = `<div class="text-center"><p class="text-6xl text-indigo-500">?</p><p class="font-bold text-lg">${user1}</p><p class="text-2xl font-bold">${q1}</p></div><div class="text-center"><p class="text-6xl text-pink-500">?</p><p class="font-bold text-lg">${user2}</p><p class="text-2xl font-bold">${q2}</p></div>`;
+        }
+        function analyzeBlock3_Voice(messages) {
+            const container = document.getElementById('voice-wave-container');
+            container.innerHTML = Array(60).fill(0).map(() => `<div class="voice-wave-bar w-full h-full bg-blue-400 rounded-full" style="animation-duration: ${Math.random() * 0.8 + 0.8}s"></div>`).join('');
+
+            const voiceMessages = messages.filter(m => m.media_type === 'voice_message' && typeof m.duration_seconds === 'number');
+            const totalDuration = voiceMessages.reduce((sum, m) => sum + m.duration_seconds, 0);
+            const longest = voiceMessages.length > 0 ? Math.max(...voiceMessages.map(m => m.duration_seconds)) : 0;
+            const avg = voiceMessages.length > 0 ? totalDuration / voiceMessages.length : 0;
+            document.getElementById('voice-stats').innerHTML = `<div class="border-r"><p class="text-2xl font-bold">${formatTime(totalDuration)}</p><p class="text-sm text-gray-500">${T('voice_total')}</p></div><div class="border-r"><p class="text-2xl font-bold">${formatTime(longest)}</p><p class="text-sm text-gray-500">${T('voice_longest')}</p></div><div><p class="text-2xl font-bold">${formatTime(avg)}</p><p class="text-sm text-gray-500">${T('voice_avg')}</p></div>`;
+        }
+        function analyzeBlock3_Stickers(messages, user1, user2) {
+            let count1 = 0, count2 = 0;
+            messages.forEach(m => { if (m.sticker_emoji) { if (m.from === user1) count1++; else if (m.from === user2) count2++; } });
+            if (count1 === 0 && count2 === 0) { document.getElementById('sticker-stats').innerHTML = `<p class="text-gray-500">${T('stickers_not_found')}</p>`; return; }
+            const winner = count1 >= count2 ? user1 : user2;
+            const maxCount = Math.max(count1, count2);
+            
+            const createBar = (user, count, color, isWinner) => {
+                const height = maxCount > 0 ? (count / maxCount) * 100 : 0;
+                return `
+                    <div class="flex flex-col items-center w-1/3">
+                        ${isWinner ? '<p class="text-3xl mb-1">🏆</p>' : '<p class="text-3xl mb-1 opacity-0">🏆</p>'}
+                        <div class="w-full h-32 bg-gray-200 rounded-t-lg flex items-end">
+                            <div class="w-full ${color} rounded-t-lg" style="height: ${height}%"></div>
+                        </div>
+                        <p class="font-bold mt-2">${user}</p>
+                        <p class="text-sm text-gray-600">${count}</p>
+                    </div>
+                `;
+            };
+
+            document.getElementById('sticker-stats').innerHTML = `
+                ${createBar(user1, count1, 'bg-indigo-500', user1 === winner)}
+                ${createBar(user2, count2, 'bg-pink-500', user2 === winner)}
+            `;
+        }
+        function analyzeBlock3_Media(messages) {
+            const counts = { photo: 0, video: 0, gif: 0, file: 0 };
+            messages.forEach(m => { if (m.photo) counts.photo++; if (m.media_type === 'video_message' || m.media_type === 'video_file') counts.video++; if (m.media_type === 'animation') counts.gif++; if (m.file && !m.media_type) counts.file++; });
+            document.getElementById('media-stats').innerHTML = `<div class="flex flex-col items-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg><p class="mt-1 font-bold text-lg">${counts.photo}</p><p class="text-xs text-gray-500">${T('media_photo')}</p></div><div class="flex flex-col items-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg><p class="mt-1 font-bold text-lg">${counts.video}</p><p class="text-xs text-gray-500">${T('media_video')}</p></div><div class="flex flex-col items-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg><p class="mt-1 font-bold text-lg">${counts.gif}</p><p class="text-xs text-gray-500">${T('media_gif')}</p></div><div class="flex flex-col items-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg><p class="mt-1 font-bold text-lg">${counts.file}</p><p class="text-xs text-gray-500">${T('media_files')}</p></div>`;
+        }
+        function analyzeBlock3_Links(messages) {
+            const domainCounts = {};
+            messages.forEach(msg => {
+                if (msg.text_entities) msg.text_entities.forEach(entity => {
+                    if (entity.type === 'link' || entity.type === 'text_link') try {
+                        const url = new URL(entity.text);
+                        let domain = url.hostname.replace('www.', '');
+                        domainCounts[domain] = (domainCounts[domain] || 0) + 1;
+                    } catch (e) {}
+                });
+            });
+            const sortedDomains = Object.entries(domainCounts).sort((a,b) => b[1]-a[1]).slice(0,3);
+            document.getElementById('links-stats').innerHTML = sortedDomains.map(([domain, count], i) => `<div class="flex flex-col items-center"><img src="https://www.google.com/s2/favicons?domain=${domain}&sz=64" alt="${domain}" class="h-${16 - i*2} w-${16 - i*2} opacity-${100 - i*20}"><p class="font-bold mt-2">${domain}</p><p class="text-sm text-gray-500">${count} ${T('times_unit')}</p></div>`).join('') || `<p class="text-gray-500">${T('links_not_found')}</p>`;
+        }
+        function analyzeBlock4_Timeline(messages) {
+            if(timelineChartInstance) timelineChartInstance.destroy();
+            const monthlyCounts = {};
+            messages.forEach(msg => { const date = new Date(msg.date); const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; monthlyCounts[key] = (monthlyCounts[key] || 0) + 1; });
+            const sortedKeys = Object.keys(monthlyCounts).sort();
+            const labels = sortedKeys.map(key => new Date(key.split('-')[0], key.split('-')[1]-1).toLocaleString(currentLang === 'uk' ? 'uk-UA' : 'en-US', { month: 'short', year: 'numeric' }));
+            const data = sortedKeys.map(key => monthlyCounts[key]);
+            timelineChartInstance = new Chart(document.getElementById('timeline-chart'), { type: 'line', data: { labels, datasets: [{ label: T('chart_msg_count'), data, borderColor: 'rgba(59, 130, 246, 1)', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.4 }] }, options: { responsive: true, maintainAspectRatio: false } });
+        }
+        
+        function analyzeBlock4_HourlyActivity(messages, user1, user2) {
+            hourlyActivityData.counts1 = Array(24).fill(0);
+            hourlyActivityData.counts2 = Array(24).fill(0);
+            messages.forEach(msg => {
+                const hour = new Date(msg.date).getHours();
+                if (msg.from === user1) hourlyActivityData.counts1[hour]++;
+                else if (msg.from === user2) hourlyActivityData.counts2[hour]++;
+            });
+            const activeMode = document.querySelector('#hourly-chart-toggle button.active')?.dataset.mode || 'grouped';
+            renderHourlyChart(activeMode);
+        }
+        
+        function renderHourlyChart(mode = 'grouped') {
+            if (hourlyChartInstance) {
+                hourlyChartInstance.destroy();
+            }
+            const ctx = document.getElementById('hourly-chart').getContext('2d');
+            const labels = Array.from({length: 24}, (_, i) => `${i}:00`);
+            
+            let datasets;
+            if (mode === 'leader') {
+                const leaderData1 = hourlyActivityData.counts1.map((count, i) => count >= hourlyActivityData.counts2[i] ? count : 0);
+                const leaderData2 = hourlyActivityData.counts2.map((count, i) => count > hourlyActivityData.counts1[i] ? count : 0);
+                datasets = [
+                    { label: user1, data: leaderData1, backgroundColor: 'rgba(99, 102, 241, 0.8)' },
+                    { label: user2, data: leaderData2, backgroundColor: 'rgba(236, 72, 153, 0.8)' }
+                ];
+            } else {
+                datasets = [
+                    { label: user1, data: hourlyActivityData.counts1, backgroundColor: 'rgba(99, 102, 241, 0.8)' },
+                    { label: user2, data: hourlyActivityData.counts2, backgroundColor: 'rgba(236, 72, 153, 0.8)' }
+                ];
+            }
+
+            hourlyChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: mode === 'leader' },
+                        y: { stacked: mode === 'leader', beginAtZero: true }
+                    },
+                    plugins: {
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.dataset.label || '';
+                                    const hour = context.dataIndex;
+                                    let count;
+                                    if (label === user1) {
+                                        count = hourlyActivityData.counts1[hour];
+                                    } else {
+                                        count = hourlyActivityData.counts2[hour];
+                                    }
+                                    return `${label}: ${T('chart_tooltip_msg_count', count)}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function analyzeBlock4_DailyAvg(messages) {
+            const firstDate = new Date(messages[0].date);
+            const lastDate = new Date(messages[messages.length - 1].date);
+            const days = Math.max(1, Math.round((lastDate - firstDate) / (1000 * 60 * 60 * 24)));
+            document.getElementById('daily-avg-count').textContent = Math.round(messages.length / days);
+        }
+        function analyzeBlock4_ReplyTime(messages, messagesById, user1, user2) {
+            let time1 = 0, count1 = 0, time2 = 0, count2 = 0;
+            messages.forEach(msg => {
+                if (msg.reply_to_message_id) {
+                    const originalMsg = messagesById.get(msg.reply_to_message_id);
+                    if (originalMsg && originalMsg.from !== msg.from) {
+                        const diff = (new Date(msg.date) - new Date(originalMsg.date)) / 1000;
+                        if (diff > 0 && diff < 86400) { if (msg.from === user1) { time1 += diff; count1++; } else if (msg.from === user2) { time2 += diff; count2++; } }
+                    }
+                }
+            });
+            document.getElementById('reply-time-content').innerHTML = `<div class="text-center"><p class="text-4xl">⏱️</p><p class="font-bold text-lg text-indigo-600">${user1}</p><p class="text-2xl font-bold">${formatTime(count1 > 0 ? time1 / count1 : 0)}</p></div><div class="text-center"><p class="text-4xl">⏱️</p><p class="font-bold text-lg text-pink-600">${user2}</p><p class="text-2xl font-bold">${formatTime(count2 > 0 ? time2 / count2 : 0)}</p></div>`;
+        }
+        function analyzeBlock5_Achievements(messages, user1, user2) {
+            const achievements = { 
+                "ach_novelist": { winner: null, icon: '📖', desc: T('ach_novelist_desc'), value: 0, threshold: 500 }, 
+                "ach_singer": { winner: null, icon: '🎤', desc: T('ach_singer_desc'), value: 0, threshold: 180 }, 
+                "ach_nightwatch": { winner: null, icon: '🦉', desc: T('ach_nightwatch_desc'), value: 0, threshold: 10 }, 
+                "ach_memelord": { winner: null, icon: '🖼️', desc: T('ach_memelord_desc'), value: 0, threshold: 50 } 
+            };
+            let longestTextMsg = { from: null, length: 0 };
+            messages.forEach(m => { const text = (Array.isArray(m.text) ? m.text.map(t=>t.text||t).join('') : (m.text||'')); if (text.length > longestTextMsg.length) longestTextMsg = { from: m.from, length: text.length }; });
+            if (longestTextMsg.length >= achievements["ach_novelist"].threshold) { achievements["ach_novelist"].winner = longestTextMsg.from; achievements["ach_novelist"].value = longestTextMsg.length; }
+            let longestVoiceMsg = { from: null, duration: 0 };
+            messages.filter(m => m.media_type === 'voice_message' && typeof m.duration_seconds === 'number').forEach(m => { if (m.duration_seconds > longestVoiceMsg.duration) longestVoiceMsg = { from: m.from, duration: m.duration_seconds }; });
+            if (longestVoiceMsg.duration >= achievements["ach_singer"].threshold) { achievements["ach_singer"].winner = longestVoiceMsg.from; achievements["ach_singer"].value = longestVoiceMsg.duration; }
+            let nightCount1 = 0, nightCount2 = 0;
+            messages.forEach(m => { const h = new Date(m.date).getHours(); if (h >= 0 && h < 6) { if (m.from === user1) nightCount1++; else if (m.from === user2) nightCount2++; } });
+            if (nightCount1 > nightCount2 && nightCount1 >= achievements["ach_nightwatch"].threshold) { achievements["ach_nightwatch"].winner = user1; achievements["ach_nightwatch"].value = nightCount1; }
+            else if (nightCount2 > nightCount1 && nightCount2 >= achievements["ach_nightwatch"].threshold) { achievements["ach_nightwatch"].winner = user2; achievements["ach_nightwatch"].value = nightCount2; }
+            let mediaCount1 = 0, mediaCount2 = 0;
+            messages.forEach(m => { if (m.photo || m.media_type === 'video_message' || m.media_type === 'animation') { if (m.from === user1) mediaCount1++; else if (m.from === user2) mediaCount2++; } });
+            if (mediaCount1 > mediaCount2 && mediaCount1 >= achievements["ach_memelord"].threshold) { achievements["ach_memelord"].winner = user1; achievements["ach_memelord"].value = mediaCount1; }
+            else if (mediaCount2 > mediaCount1 && mediaCount2 >= achievements["ach_memelord"].threshold) { achievements["ach_memelord"].winner = user2; achievements["ach_memelord"].value = mediaCount2; }
+            document.getElementById('achievements-grid').innerHTML = Object.entries(achievements).map(([nameKey, data]) => `<div class="relative flex flex-col items-center justify-center p-4 rounded-lg transition-all ${data.winner ? 'bg-green-100 scale-105 shadow-lg' : 'bg-gray-100'}">${data.winner ? `<img src="https://placehold.co/24x24/${data.winner === user1 ? '7F9CF5' : 'F472B6'}/FFFFFF?text=${getInitials(data.winner)}" alt="${data.winner}" title="${data.winner}" class="absolute -top-2 -right-2 w-7 h-7 rounded-full border-2 border-white">` : ''}<span class="text-4xl ${data.winner ? '' : 'grayscale opacity-50'}">${data.icon}</span><p class="font-bold mt-2 text-sm">${T(nameKey)}</p><p class="text-xs text-gray-500 h-8 mt-1">${data.desc}</p></div>`).join('');
+        }
+        function analyzeBlock5_Epicenter(messages, messagesById) {
+            const replyCounts = {};
+            messages.forEach(m => { if (m.reply_to_message_id) replyCounts[m.reply_to_message_id] = (replyCounts[m.reply_to_message_id] || 0) + 1; });
+            const epicenterId = Object.keys(replyCounts).sort((a,b) => replyCounts[b] - replyCounts[a])[0];
+            const wrapper = document.getElementById('epicenter-content-wrapper');
+            if (epicenterId) {
+                const msg = messagesById.get(parseInt(epicenterId));
+                if (!msg) { wrapper.innerHTML = `<p>${T('epicenter_no_replies')}</p>`; return; }
+                const replies = messages.filter(m => m.reply_to_message_id == epicenterId);
+                const text = Array.isArray(msg.text) ? msg.text.map(t => t.text || t).join('') : (msg.text || T('media_file'));
+                wrapper.innerHTML = `<p class="font-medium text-indigo-800">${msg.from}</p><p class="text-gray-700 mt-1">${text.substring(0, 100)}...</p><p class="text-right text-sm font-bold text-indigo-600 mt-2">${T('epicenter_replies_count', replyCounts[epicenterId])}</p>`;
+                wrapper.onclick = () => showEpicenterReplies(msg, replies);
+            } else { wrapper.innerHTML = `<p>${T('epicenter_no_replies')}</p>`; }
+        }
+        function showEpicenterReplies(originalMsg, replies) {
+            const epicenterModal = document.getElementById('epicenter-modal');
+            const epicenterModalContent = document.getElementById('epicenter-modal-content');
+            let repliesHtml = `<h3 class="text-xl font-bold mb-4">${T('epicenter_replies_to')}</h3><div class="bg-gray-100 p-3 rounded-lg mb-4"><p class="font-bold">${originalMsg.from}</p><p>${Array.isArray(originalMsg.text) ? originalMsg.text.map(t => t.text || t).join('') : (originalMsg.text || T('media_file'))}</p><p class="text-xs text-gray-500 text-right">${new Date(originalMsg.date).toLocaleString(currentLang === 'uk' ? 'uk-UA' : 'en-US')}</p></div><hr class="my-4"><div class="space-y-3">`;
+            replies.forEach(reply => { repliesHtml += `<div class="bg-blue-50 p-3 rounded-lg"><p class="font-bold text-blue-800">${reply.from}</p><p>${Array.isArray(reply.text) ? reply.text.map(t => t.text || t).join('') : (reply.text || T('media_file'))}</p><p class="text-xs text-gray-500 text-right">${new Date(reply.date).toLocaleString(currentLang === 'uk' ? 'uk-UA' : 'en-US')}</p></div>`; });
+            repliesHtml += `</div><button id="close-epicenter-modal" class="mt-6 w-full bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-300">${T('close')}</button>`;
+            epicenterModalContent.innerHTML = repliesHtml;
+            epicenterModal.classList.add('visible');
+            document.getElementById('close-epicenter-modal').onclick = () => epicenterModal.classList.remove('visible');
+        }
+        function analyzeBlock5_Nostalgia(messages) {
+            const btn = document.getElementById('nostalgia-button'), card = document.getElementById('nostalgia-card');
+            btn.onclick = () => {
+                const today = new Date();
+                const pastMessages = messages.filter(m => { const msgDate = new Date(m.date); return (Array.isArray(m.text) ? m.text.map(t => t.text || t).join('') : (m.text || '')) && (today.getFullYear() > msgDate.getFullYear()) && (today.getMonth() === msgDate.getMonth()) && (today.getDate() === msgDate.getDate()); });
+                const randomMsg = pastMessages[Math.floor(Math.random() * pastMessages.length)];
+                card.innerHTML = randomMsg ? `<strong>${randomMsg.from}:</strong> ${randomMsg.text}<br><small>${new Date(randomMsg.date).toLocaleDateString(currentLang === 'uk' ? 'uk-UA' : 'en-US')}</small>` : T('nostalgia_no_memories');
+                card.classList.remove('hidden');
+            };
+        }
+        function analyzeBlock5_Quote(messages) {
+            const btn = document.getElementById('quote-button'), card = document.getElementById('quote-card');
+            const funnyEmojis = ['😂', '🤣', '😆', '😹', '👍'];
+            btn.onclick = () => {
+                const funnyMessages = messages.filter(m => m.reactions && m.reactions.some(r => funnyEmojis.includes(r.emoji)));
+                const randomMsg = funnyMessages[Math.floor(Math.random() * funnyMessages.length)];
+                if (randomMsg) {
+                    const text = Array.isArray(randomMsg.text) ? randomMsg.text.map(t => t.text || t).join('') : (randomMsg.text || T('media_file'));
+                    card.innerHTML = `<strong>${randomMsg.from}:</strong> ${text}`;
+                    card.classList.remove('hidden');
+                } else {
+                    card.innerHTML = T('quote_no_quotes');
+                    card.classList.remove('hidden');
+                }
+            };
+        }
+        
+        function populateComparisonSuggestions() {
+            const datalist = document.getElementById('chat-suggestions');
+            datalist.innerHTML = '';
+            personalChats
+                .filter(chat => chat.name !== user2)
+                .forEach(chat => {
+                    const option = document.createElement('option');
+                    option.value = chat.name;
+                    datalist.appendChild(option);
+                });
+        }
+
+        function setupScrollAnimations() {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('is-visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, {
+                threshold: 0.1
+            });
+
+            document.querySelectorAll('.scroll-reveal-item').forEach(item => {
+                observer.observe(item);
+            });
+        }
+        
+        function initializeLanguage() {
+            const savedLang = localStorage.getItem('telegramStatsLang');
+            const browserLang = navigator.language.split('-')[0];
+            const lang = savedLang || (translations[browserLang] ? browserLang : 'en');
+            setLanguage(lang);
+            document.querySelectorAll('.language-switcher button').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.lang === lang);
+            });
+        }
+
+        function setupEventListeners() {
+            document.getElementById('change-chat-button').addEventListener('click', displayChatSelectionModal);
+            document.getElementById('epicenter-modal').addEventListener('click', (e) => {
+                if (e.target === document.getElementById('epicenter-modal')) document.getElementById('epicenter-modal').classList.remove('visible');
+            });
+            document.getElementById('compare-button').addEventListener('click', () => {
+                document.getElementById('comparison-setup').classList.toggle('hidden');
+                document.getElementById('comparison-results').classList.add('hidden');
+                if (!document.getElementById('comparison-setup').classList.contains('hidden')) {
+                    document.getElementById('comparison-setup').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            });
+            document.getElementById('start-comparison-button').addEventListener('click', runComparison);
+            document.getElementById('hourly-chart-toggle').addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    const mode = e.target.dataset.mode;
+                    renderHourlyChart(mode);
+                    document.getElementById('hourly-chart-toggle').querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+                    e.target.classList.add('active');
+                }
+            });
+            document.querySelector('.language-switcher').addEventListener('click', (e) => {
+                const lang = e.target.dataset.lang;
+                if (lang && lang !== currentLang) {
+                    setLanguage(lang);
+                    document.querySelectorAll('.language-switcher button').forEach(btn => btn.classList.remove('active'));
+                    e.target.classList.add('active');
+                }
+            });
+        }
+
+        setupEventListeners();
+        initializeLanguage();
+
+    </script>
+</body>
+</html>
